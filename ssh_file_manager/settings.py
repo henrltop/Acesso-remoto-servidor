@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'file_manager',
-
+    'monitoring',  # Adicione esta linha se ainda não estiver presente
 ]
 
 MIDDLEWARE = [

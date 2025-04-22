@@ -1,9 +1,12 @@
 {% extends 'file_manager/base.html' %}
+{% load file_manager_filters %}
 
 {% block title %}Navegador de Arquivos - SSH File Manager{% endblock %}
 
 {% block extra_head %}
+<!-- Estilos específicos da página index -->
 <style>
+    /* Estilo do cabeçalho do navegador de arquivos */
     .file-browser-header {
         background: linear-gradient(120deg, #f6f9fc, #edf2f7);
         border-radius: 12px;
@@ -16,6 +19,7 @@
         background: linear-gradient(120deg, #2d3748, #1a202c);
     }
     
+    /* Estilos dos cartões de arquivos */
     .file-card {
         height: 100%;
         border-radius: 10px;
@@ -33,12 +37,14 @@
         padding: 1rem;
     }
     
+    /* Layout grid para visualização em grade */
     .file-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 15px;
     }
     
+    /* Estilo do ícone de arquivo/pasta */
     .file-icon-wrapper {
         height: 100px;
         display: flex;
@@ -51,6 +57,7 @@
         transition: transform 0.3s;
     }
     
+    /* Estilo do nome do arquivo */
     .file-name {
         text-align: center;
         font-size: 0.9rem;
@@ -63,6 +70,7 @@
         -webkit-box-orient: vertical;
     }
     
+    /* Botões de ação para arquivos/pastas */
     .file-actions {
         position: absolute;
         top: 0;
@@ -87,6 +95,7 @@
         transform: scale(1.1);
     }
     
+    /* Cores específicas para diferentes tipos de cartões */
     .folder-card {
         background: linear-gradient(135deg, #fff8e1, #fff8e1);
         border: none;
@@ -132,6 +141,7 @@
         background: linear-gradient(135deg, #263238, #37474f);
     }
     
+    /* Seletor de visualização (grade/lista) */
     .view-switcher .btn-icon {
         width: 40px;
         height: 40px;
@@ -141,6 +151,7 @@
         justify-content: center;
     }
     
+    /* Container de navegação (breadcrumb) */
     .breadcrumb-container {
         overflow-x: auto;
         white-space: nowrap;
@@ -161,6 +172,7 @@
         background-color: rgba(255, 255, 255, 0.2);
     }
     
+    /* Mensagem de pasta vazia */
     .empty-folder-message {
         text-align: center;
         padding: 50px 0;
@@ -177,6 +189,7 @@
         color: #6c757d;
     }
     
+    /* Botões de ação */
     .btn-action {
         width: 32px;
         height: 32px;
@@ -187,6 +200,7 @@
         border-radius: 6px;
     }
     
+    /* Badges para tipos de arquivo */
     .file-badge {
         position: absolute;
         bottom: 5px;
@@ -210,6 +224,7 @@
         color: #ffc107;
     }
     
+    /* Estilo dos modals */
     .modal-content {
         border-radius: 15px;
         overflow: hidden;
@@ -228,8 +243,10 @@
 {% endblock %}
 
 {% block content %}
+<!-- Cabeçalho do navegador de arquivos -->
 <div class="file-browser-header animate__animated animate__fadeIn">
     <div class="row align-items-center">
+        <!-- Breadcrumb para navegação -->
         <div class="col-md-8">
             <div class="breadcrumb-container">
                 <nav aria-label="breadcrumb">
@@ -248,6 +265,7 @@
                 </nav>
             </div>
         </div>
+        <!-- Botões de alternar visualização (grid/lista) -->
         <div class="col-md-4 text-md-end mt-3 mt-md-0">
             <div class="btn-group view-switcher" role="group">
                 <button type="button" class="btn btn-outline-primary btn-icon active" id="gridViewBtn" title="Visualização em grid">
@@ -261,7 +279,9 @@
     </div>
 </div>
 
+<!-- Barra de ações (voltar, nova pasta, upload) e busca -->
 <div class="row mb-4">
+    <!-- Botões de ação -->
     <div class="col-md-6 mb-3 mb-md-0">
         <div class="btn-group">
             {% if current_path != '.' %}
@@ -277,6 +297,7 @@
             </button>
         </div>
     </div>
+    <!-- Campo de busca/filtro -->
     <div class="col-md-6">
         <div class="input-group animate__animated animate__fadeInRight">
             <span class="input-group-text bg-white border-end-0">
@@ -287,25 +308,30 @@
     </div>
 </div>
 
+<!-- Mensagem de erro caso não consiga conectar via SSH -->
 {% if error %}
     <div class="alert alert-danger animate__animated animate__fadeIn">
         <i class="fas fa-exclamation-triangle me-2"></i> {{ error }}
     </div>
 {% else %}
+    <!-- Container principal de arquivos/pastas -->
     <div class="card animate__animated animate__fadeIn">
+        <!-- Cabeçalho da listagem com caminho atual -->
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <span><i class="fas fa-folder-open me-2"></i>{{ current_path }}</span>
             <span class="badge bg-primary rounded-pill" id="fileCounter">{{ files|length }} itens</span>
         </div>
         
         <div class="card-body">
-            <!-- Grid View (padrão) -->
+            <!-- Grid View (visualização em grade) -->
             <div id="gridView" class="file-grid">
                 {% for file in files %}
-                    {% with extension=file.name|cut:"." %}
+                    {% with extension=file.name|split:"." %}
                     <div class="file-item animate__animated animate__zoomIn">
-                        <div class="file-card {% if file.type == 'dir' %}folder-card{% elif extension in 'txt,md,py,js,html,css,php,json,xml,c,cpp,h,java' %}file-text-card{% elif extension in 'jpg,jpeg,png,gif,svg,webp,bmp' %}file-image-card{% elif extension in 'exe,sh,bash,bat,cmd' %}file-exec-card{% else %}file-other-card{% endif %}">
+                        <!-- Cartão do arquivo/pasta com estilo baseado no tipo -->
+                        <div class="file-card {% if file.type == 'dir' %}folder-card{% elif extension|last in 'txt,md,py,js,html,css,php,json,xml,c,cpp,h,java' %}file-text-card{% elif extension|last in 'jpg,jpeg,png,gif,svg,webp,bmp' %}file-image-card{% elif extension|last in 'exe,sh,bash,bat,cmd' %}file-exec-card{% else %}file-other-card{% endif %}">
                             {% if file.type == 'dir' %}
+                                <!-- Renderização para diretórios -->
                                 <a href="{% url 'index' %}?path={{ current_path }}/{{ file.name }}" class="text-decoration-none">
                                     <div class="file-icon-wrapper">
                                         <i class="fas fa-folder text-warning file-icon-large"></i>
@@ -316,34 +342,35 @@
                                 </a>
                                 <span class="file-badge folder-badge">pasta</span>
                             {% else %}
+                                <!-- Renderização para arquivos -->
                                 <div class="file-icon-wrapper">
-                                    {% if extension in 'py' %}
+                                    {% if extension|last == 'py' %}
                                         <i class="fab fa-python text-primary file-icon-large"></i>
-                                    {% elif extension in 'js,json' %}
+                                    {% elif extension|last in 'js,json' %}
                                         <i class="fab fa-js-square text-warning file-icon-large"></i>
-                                    {% elif extension in 'html,htm' %}
+                                    {% elif extension|last in 'html,htm' %}
                                         <i class="fab fa-html5 text-danger file-icon-large"></i>
-                                    {% elif extension in 'css' %}
+                                    {% elif extension|last == 'css' %}
                                         <i class="fab fa-css3-alt text-info file-icon-large"></i>
-                                    {% elif extension in 'php' %}
+                                    {% elif extension|last == 'php' %}
                                         <i class="fab fa-php text-primary file-icon-large"></i>
-                                    {% elif extension in 'jpg,jpeg,png,gif,svg,webp,bmp' %}
+                                    {% elif extension|last in 'jpg,jpeg,png,gif,svg,webp,bmp' %}
                                         <i class="fas fa-image text-success file-icon-large"></i>
-                                    {% elif extension in 'md' %}
+                                    {% elif extension|last == 'md' %}
                                         <i class="fab fa-markdown text-secondary file-icon-large"></i>
-                                    {% elif extension in 'pdf' %}
+                                    {% elif extension|last == 'pdf' %}
                                         <i class="fas fa-file-pdf text-danger file-icon-large"></i>
-                                    {% elif extension in 'doc,docx' %}
+                                    {% elif extension|last in 'doc,docx' %}
                                         <i class="fas fa-file-word text-primary file-icon-large"></i>
-                                    {% elif extension in 'xls,xlsx' %}
+                                    {% elif extension|last in 'xls,xlsx' %}
                                         <i class="fas fa-file-excel text-success file-icon-large"></i>
-                                    {% elif extension in 'ppt,pptx' %}
+                                    {% elif extension|last in 'ppt,pptx' %}
                                         <i class="fas fa-file-powerpoint text-warning file-icon-large"></i>
-                                    {% elif extension in 'zip,rar,tar,gz,7z' %}
+                                    {% elif extension|last in 'zip,rar,tar,gz,7z' %}
                                         <i class="fas fa-file-archive text-secondary file-icon-large"></i>
-                                    {% elif extension in 'exe,msi' %}
+                                    {% elif extension|last in 'exe,msi' %}
                                         <i class="fas fa-cog text-secondary file-icon-large"></i>
-                                    {% elif extension in 'sh,bash' %}
+                                    {% elif extension|last in 'sh,bash' %}
                                         <i class="fas fa-terminal text-success file-icon-large"></i>
                                     {% else %}
                                         <i class="fas fa-file text-secondary file-icon-large"></i>
@@ -352,11 +379,14 @@
                                 <div class="file-name">
                                     {{ file.name }}
                                 </div>
-                                <span class="file-badge">{{ extension }}</span>
+                                <span class="file-badge">{{ extension|last }}</span>
                             {% endif %}
+                            
+                            <!-- Botões de ação para o arquivo/pasta -->
                             <div class="file-actions">
                                 <div class="btn-group">
                                     {% if file.type == 'dir' %}
+                                        <!-- Ações para diretórios -->
                                         <button class="btn btn-sm btn-warning rename-btn" data-path="{{ current_path }}/{{ file.name }}" data-name="{{ file.name }}" title="Renomear">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -364,9 +394,18 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     {% else %}
+                                        <!-- Ações para arquivos -->
                                         <a href="{% url 'edit_file' path=current_path|add:'/'|add:file.name %}" class="btn btn-sm btn-primary" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        
+                                        <!-- Botão de Executar para arquivos de código -->
+                                        {% if extension|last in 'py,js,php,sh,bash' %}
+                                        <a href="{% url 'execute_code_view' path=current_path|add:'/'|add:file.name %}" class="btn btn-sm btn-success" title="Executar">
+                                            <i class="fas fa-play"></i>
+                                        </a>
+                                        {% endif %}
+                                        
                                         <a href="{% url 'download_file' %}?path={{ current_path }}/{{ file.name }}" class="btn btn-sm btn-success" title="Download">
                                             <i class="fas fa-download"></i>
                                         </a>
@@ -383,6 +422,7 @@
                     </div>
                     {% endwith %}
                 {% empty %}
+                    <!-- Mensagem para pastas vazias -->
                     <div class="empty-folder-message animate__animated animate__fadeIn" style="grid-column: 1 / -1;">
                         <i class="fas fa-folder-open empty-folder-icon"></i>
                         <p class="empty-folder-text">Esta pasta está vazia</p>
@@ -391,7 +431,7 @@
                 {% endfor %}
             </div>
             
-            <!-- List View (alternativo) -->
+            <!-- List View (visualização em lista) -->
             <div id="listView" class="d-none">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -426,6 +466,7 @@
                                     <td>
                                         <div class="btn-group">
                                             {% if file.type == 'dir' %}
+                                                <!-- Ações para diretórios (visualização em lista) -->
                                                 <button class="btn btn-sm btn-warning rename-btn btn-action" data-path="{{ current_path }}/{{ file.name }}" data-name="{{ file.name }}" title="Renomear">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -433,9 +474,20 @@
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             {% else %}
+                                                <!-- Ações para arquivos (visualização em lista) -->
                                                 <a href="{% url 'edit_file' path=current_path|add:'/'|add:file.name %}" class="btn btn-sm btn-primary btn-action" title="Editar">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                
+                                                <!-- Botão de Executar para arquivos de código (visualização em lista) -->
+                                                {% with extension=file.name|split:"." %}
+                                                {% if extension|last in 'py,js,php,sh,bash' %}
+                                                <a href="{% url 'execute_code_view' path=current_path|add:'/'|add:file.name %}" class="btn btn-sm btn-success btn-action" title="Executar">
+                                                    <i class="fas fa-play"></i>
+                                                </a>
+                                                {% endif %}
+                                                {% endwith %}
+                                                
                                                 <a href="{% url 'download_file' %}?path={{ current_path }}/{{ file.name }}" class="btn btn-sm btn-success btn-action" title="Download">
                                                     <i class="fas fa-download"></i>
                                                 </a>
@@ -450,6 +502,7 @@
                                     </td>
                                 </tr>
                             {% empty %}
+                                <!-- Mensagem para pastas vazias (visualização em lista) -->
                                 <tr>
                                     <td colspan="4" class="text-center py-5">
                                         <i class="fas fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
@@ -464,6 +517,8 @@
         </div>
     </div>
 {% endif %}
+
+<!-- MODALS: -->
 
 <!-- Modal Nova Pasta -->
 <div class="modal fade" id="newDirModal" tabindex="-1" aria-hidden="true">
@@ -594,6 +649,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- JavaScript para manipulação do navegador de arquivos -->
 <script>
     $(document).ready(function() {
         // Alternância de visualização (grid/lista)
