@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gerenciador de Arquivos SSH{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        :root {
+            --primary-color: #6c63ff;
+            --secondary-color: #4db5ff;
+            --success-color: #42ba96;
+            --info-color: #38bdf8;
+            --warning-color: #f7c04a;
+            --danger-color: #fd7e89;
+            --dark-color: #212529;
+            --light-color: #f8f9fa;
+        }
+        
+        body {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        [data-bs-theme="dark"] {
+            --bs-primary: var(--primary-color);
+            --bs-secondary: var(--secondary-color);
+            --bs-success: var(--success-color);
+            --bs-info: var(--info-color);
+            --bs-warning: var(--warning-color);
+            --bs-danger: var(--danger-color);
+            color-scheme: dark;
+        }
+        
+        .navbar {
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+        }
+        
+        .file-item {
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            padding: 10px;
+        }
+        
+        .file-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: rgba(108, 99, 255, 0.05);
+        }
+        
+        .file-icon {
+            font-size: 1.8rem;
+            margin-right: 12px;
+            transition: transform 0.2s;
+        }
+        
+        .file-item:hover .file-icon {
+            transform: scale(1.15);
+        }
+        
+        .btn {
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .alert {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .breadcrumb-item a {
+            text-decoration: none;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+        
+        .breadcrumb-item a:hover {
+            color: var(--primary-color);
+        }
+        
+        .directory {
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            display: none;
+        }
+        
+        .theme-toggle {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .app-logo {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .custom-tooltip {
+            position: relative;
+        }
+        
+        .custom-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand app-logo animate__animated animate__fadeIn" href="{% url 'index' %}">
+                <i class="fas fa-server me-2"></i>SSH File Manager
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <div class="nav-link theme-toggle" id="themeToggle">
+                            <i class="fas fa-moon text-light"></i>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'index' %}">
+                            <i class="fas fa-home me-1"></i> Início
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'admin:index' %}">
+                            <i class="fas fa-cog me-1"></i> Admin
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-4 fade-in">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show animate__animated animate__fadeInDown">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+
+        <footer class="mt-5 py-3 text-center text-muted">
+            <small>Desenvolvido com <i class="fas fa-heart text-danger"></i> usando Django</small>
+        </footer>
+    </div>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <script>
+        // Tema claro/escuro
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const htmlElement = document.documentElement;
+            const icon = themeToggle.querySelector('i');
+            
+            // Verifica se há uma preferência salva
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                htmlElement.setAttribute('data-bs-theme', savedTheme);
+                icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                icon.classList.add(savedTheme === 'dark' ? 'text-warning' : 'text-light');
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = htmlElement.getAttribute('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                htmlElement.setAttribute('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                if (newTheme === 'dark') {
+                    icon.className = 'fas fa-sun text-warning';
+                    themeToggle.setAttribute('data-tooltip', 'Mudar para tema claro');
+                } else {
+                    icon.className = 'fas fa-moon text-light';
+                    themeToggle.setAttribute('data-tooltip', 'Mudar para tema escuro');
+                }
+            });
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,705 @@
+{% extends 'file_manager/base.html' %}
+{% load file_manager_filters %}
+
+{% block title %}Editando: {{ filename }}{% endblock %}
+
+{% block extra_head %}
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/dialog/dialog.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/matchesonscrollbar.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.css">
+    <style>
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 180px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .editor-toolbar {
+            background: linear-gradient(135deg, #2c3e50, #1a2a38);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        [data-bs-theme="light"] .editor-toolbar {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            color: #212529;
+        }
+        
+        .editor-statusbar {
+            background: #1a1a1a;
+            color: #6c757d;
+            padding: 5px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 0 0 8px 8px;
+            z-index: 10;
+        }
+        
+        [data-bs-theme="light"] .editor-statusbar {
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1) inset;
+        }
+        
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        [data-bs-theme="light"] .toolbar-btn {
+            color: #212529;
+        }
+        
+        .toolbar-btn:hover {
+            transform: translateY(-2px);
+            color: var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        [data-bs-theme="light"] .toolbar-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .editor-path {
+            font-size: 0.9rem;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+        
+        [data-bs-theme="light"] .editor-path {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .CodeMirror-matchingbracket {
+            background-color: rgba(80, 200, 120, 0.3) !important;
+            color: inherit !important;
+            font-weight: bold;
+        }
+        
+        .editor-info-badge {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+        
+        [data-bs-theme="light"] .editor-info-badge {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        .file-icon-header {
+            margin-right: 8px;
+            font-size: 1.4rem;
+            vertical-align: middle;
+        }
+        
+        .theme-selector {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .theme-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #2c3e50;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 180px;
+            display: none;
+            padding: 5px;
+            margin-top: 8px;
+        }
+        
+        [data-bs-theme="light"] .theme-dropdown {
+            background-color: #fff;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-dropdown.show {
+            display: block;
+            animation: fadeInDown 0.2s;
+        }
+        
+        .theme-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .theme-option:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        [data-bs-theme="light"] .theme-option:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .theme-option:before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border-radius: 50%;
+        }
+        
+        .theme-option[data-theme="dracula"]:before {
+            background: linear-gradient(135deg, #282a36, #44475a);
+            border: 1px solid #6272a4;
+        }
+        
+        .theme-option[data-theme="monokai"]:before {
+            background: linear-gradient(135deg, #272822, #3e3d31);
+            border: 1px solid #75715e;
+        }
+        
+        .theme-option[data-theme="material"]:before {
+            background: linear-gradient(135deg, #263238, #37474f);
+            border: 1px solid #607d8b;
+        }
+        
+        .theme-option[data-theme="eclipse"]:before {
+            background: linear-gradient(135deg, #f7f7f7, #e8e8e8);
+            border: 1px solid #cccccc;
+        }
+        
+        .theme-option[data-theme="elegant"]:before {
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            border: 1px solid #dddddd;
+        }
+        
+        .save-button-fixed {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1030;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .save-button-fixed:hover {
+            transform: scale(1.1);
+        }
+        
+        .save-button-fixed .spinner-border {
+            position: absolute;
+        }
+        
+        .save-shortcut {
+            font-size: 0.7rem;
+            position: absolute;
+            bottom: -20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 8px;
+            border-radius: 10px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .save-button-fixed:hover .save-shortcut {
+            opacity: 1;
+        }
+        
+        .CodeMirror-foldmarker {
+            color: #ffcc00;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+            font-family: Arial;
+            line-height: 0.3;
+            cursor: pointer;
+            padding: 0 3px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .CodeMirror-foldgutter {
+            width: 1.2em;
+        }
+        
+        .CodeMirror-foldgutter-open:after {
+            content: '▾';
+        }
+
+        .CodeMirror-foldgutter-folded:after {
+            content: '▸';
+        }
+        
+        .editor-actions {
+            display: flex;
+            align-items: center;
+        }
+        
+        .CodeMirror-dialog {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        [data-bs-theme="light"] .CodeMirror-dialog {
+            background: rgba(255, 255, 255, 0.95);
+            color: black;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+        }
+        
+        .file-size {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+        
+        [data-bs-theme="light"] .file-size {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="animate__animated animate__fadeIn">
+                {% with extension=filename|get_file_extension %}
+                    {% if extension == 'py' %}
+                        <i class="fab fa-python text-primary file-icon-header"></i>
+                    {% elif extension == 'js' or extension == 'json' %}
+                        <i class="fab fa-js-square text-warning file-icon-header"></i>
+                    {% elif extension == 'html' or extension == 'htm' %}
+                        <i class="fab fa-html5 text-danger file-icon-header"></i>
+                    {% elif extension == 'css' %}
+                        <i class="fab fa-css3-alt text-info file-icon-header"></i>
+                    {% elif extension == 'php' %}
+                        <i class="fab fa-php text-primary file-icon-header"></i>
+                    {% elif extension == 'md' %}
+                        <i class="fab fa-markdown text-secondary file-icon-header"></i>
+                    {% else %}
+                        <i class="fas fa-file-code text-secondary file-icon-header"></i>
+                    {% endif %}
+                {% endwith %}
+                Editando: <span class="text-primary">{{ filename }}</span>
+            </h4>
+            <a href="{% url 'index' %}?path={{ path|cut:filename }}" class="btn btn-outline-secondary animate__animated animate__fadeIn">
+                <i class="fas fa-arrow-left me-1"></i> Voltar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card animate__animated animate__fadeIn mb-4">
+    <div class="editor-container">
+        <div class="editor-toolbar">
+            <div class="d-flex align-items-center">
+                <div class="editor-path">{{ path }}</div>
+                {% with extension=filename|get_file_extension %}
+                    <span class="editor-info-badge">{{ extension|upper }}</span>
+                {% endwith %}
+            </div>
+            <div class="editor-actions">
+                <button class="toolbar-btn" id="findBtn" title="Buscar (Ctrl+F)">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="toolbar-btn" id="replaceBtn" title="Substituir (Ctrl+H)">
+                    <i class="fas fa-exchange-alt"></i>
+                </button>
+                <button class="toolbar-btn" id="foldBtn" title="Expandir/Recolher código">
+                    <i class="fas fa-compress-alt"></i>
+                </button>
+                <button class="toolbar-btn" id="formatBtn" title="Formatar código">
+                    <i class="fas fa-indent"></i>
+                </button>
+                <div class="theme-selector">
+                    <button class="toolbar-btn" id="themeBtn" title="Mudar tema">
+                        <i class="fas fa-palette"></i>
+                    </button>
+                    <div class="theme-dropdown" id="themeDropdown">
+                        <div class="theme-option" data-theme="dracula">Dracula (Escuro)</div>
+                        <div class="theme-option" data-theme="monokai">Monokai (Escuro)</div>
+                        <div class="theme-option" data-theme="material">Material (Escuro)</div>
+                        <div class="theme-option" data-theme="eclipse">Eclipse (Claro)</div>
+                        <div class="theme-option" data-theme="elegant">Elegant (Claro)</div>
+                    </div>
+                </div>
+                <button type="submit" form="editForm" class="toolbar-btn" title="Salvar (Ctrl+S)" id="saveBtn">
+                    <i class="fas fa-save"></i>
+                </button>
+            </div>
+        </div>
+        <div class="editor-wrapper">
+            <form id="editForm" method="post">
+                {% csrf_token %}
+                <textarea id="code-editor" name="content">{{ content }}</textarea>
+            </form>
+        </div>
+        <div class="editor-statusbar">
+            <div id="cursor-position">Linha: 1, Coluna: 1</div>
+            <div class="d-flex align-items-center">
+                <span id="indentation-status">Espaços: 4</span>
+                <span class="file-size" id="file-size">{{ content|length }} caracteres</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="submit" form="editForm" class="btn btn-success save-button-fixed animate__animated animate__bounceIn" id="saveFixedBtn">
+    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    <i class="fas fa-save"></i>
+    <span class="save-shortcut">Ctrl+S</span>
+</button>
+{% endblock %}
+
+{% block extra_scripts %}
+    <!-- CodeMirror Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    
+    <!-- Modos de linguagens -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/php/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/shell/shell.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/yaml/yaml.min.js"></script>
+    
+    <!-- Addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/indent-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/comment-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/search.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/searchcursor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/search/jump-to-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/dialog/dialog.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/comment/comment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/trailingspace.min.js"></script>
+    
+    <!-- Temas adicionais -->
+    <script>
+        // Função para carregar um tema CSS dinamicamente
+        function loadThemeCss(theme) {
+            const linkId = 'codemirror-theme-link';
+            let link = document.getElementById(linkId);
+            
+            if (!link) {
+                link = document.createElement('link');
+                link.id = linkId;
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
+            }
+            
+            link.href = `https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/${theme}.min.css`;
+        }
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Detectar o tipo de arquivo
+            const filename = "{{ filename }}";
+            const extension = filename.split('.').pop().toLowerCase();
+            
+            // Determinar o modo com base na extensão
+            let mode = 'text/plain';
+            if (['js', 'json'].includes(extension)) {
+                mode = 'javascript';
+            } else if (['html', 'htm'].includes(extension)) {
+                mode = 'htmlmixed';
+            } else if (['css'].includes(extension)) {
+                mode = 'css';
+            } else if (['py'].includes(extension)) {
+                mode = 'python';
+            } else if (['php'].includes(extension)) {
+                mode = 'php';
+            } else if (['xml'].includes(extension)) {
+                mode = 'xml';
+            } else if (['md', 'markdown'].includes(extension)) {
+                mode = 'markdown';
+            } else if (['c', 'cpp', 'h', 'hpp', 'java'].includes(extension)) {
+                mode = 'clike';
+            } else if (['sh', 'bash'].includes(extension)) {
+                mode = 'shell';
+            } else if (['sql'].includes(extension)) {
+                mode = 'sql';
+            } else if (['yml', 'yaml'].includes(extension)) {
+                mode = 'yaml';
+            }
+            
+            // Obter tema salvo ou usar o tema padrão
+            const savedTheme = localStorage.getItem('code-editor-theme') || 'dracula';
+            loadThemeCss(savedTheme);
+            
+            // Inicializar o editor
+            const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                lineNumbers: true,
+                mode: mode,
+                theme: savedTheme,
+                indentUnit: 4,
+                smartIndent: true,
+                tabSize: 4,
+                indentWithTabs: false,
+                lineWrapping: false,
+                autoCloseBrackets: true,
+                autoCloseTags: true,
+                matchBrackets: true,
+                styleActiveLine: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                extraKeys: {
+                    "Ctrl-S": function(cm) {
+                        document.getElementById('editForm').submit();
+                        showSavingIndicator();
+                    },
+                    "Ctrl-/": "toggleComment",
+                    "Ctrl-F": "findPersistent",
+                    "Ctrl-Space": "autocomplete",
+                },
+                showTrailingSpace: true
+            });
+            
+            // Atualizar informações do cursor
+            editor.on('cursorActivity', function() {
+                const cursor = editor.getCursor();
+                document.getElementById('cursor-position').textContent = `Linha: ${cursor.line + 1}, Coluna: ${cursor.ch + 1}`;
+            });
+            
+            // Tema escuro/claro automático
+            function updateEditorTheme() {
+                const htmlTheme = document.documentElement.getAttribute('data-bs-theme');
+                if (htmlTheme === 'dark') {
+                    // Se a interface está em modo escuro e o editor está em tema claro
+                    if (['eclipse', 'elegant', 'neat', 'ttcn', 'idea'].includes(editor.getOption('theme'))) {
+                        editor.setOption('theme', 'dracula');
+                        localStorage.setItem('code-editor-theme', 'dracula');
+                        loadThemeCss('dracula');
+                    }
+                } else {
+                    // Se a interface está em modo claro e o editor está em tema escuro
+                    if (['dracula', 'monokai', 'material', 'darcula', 'material-darker'].includes(editor.getOption('theme'))) {
+                        editor.setOption('theme', 'eclipse');
+                        localStorage.setItem('code-editor-theme', 'eclipse');
+                        loadThemeCss('eclipse');
+                    }
+                }
+            }
+            
+            // Verificar preferência de tema quando a página carrega
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'data-bs-theme') {
+                        updateEditorTheme();
+                    }
+                });
+            });
+            
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
+            
+            // Manipulador de tema
+            document.getElementById('themeBtn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.getElementById('themeDropdown').classList.toggle('show');
+            });
+            
+            // Fechar dropdown quando clicar em qualquer lugar
+            document.addEventListener('click', function() {
+                document.getElementById('themeDropdown').classList.remove('show');
+            });
+            
+            // Trocar tema
+            document.querySelectorAll('.theme-option').forEach(function(option) {
+                option.addEventListener('click', function() {
+                    const theme = this.getAttribute('data-theme');
+                    editor.setOption('theme', theme);
+                    localStorage.setItem('code-editor-theme', theme);
+                    loadThemeCss(theme);
+                });
+            });
+            
+            // Buscar
+            document.getElementById('findBtn').addEventListener('click', function() {
+                editor.execCommand('findPersistent');
+            });
+            
+            // Substituir
+            document.getElementById('replaceBtn').addEventListener('click', function() {
+                editor.execCommand('replace');
+            });
+            
+            // Expandir/colapsar código
+            document.getElementById('foldBtn').addEventListener('click', function() {
+                const ranges = editor.getAllMarks();
+                if (ranges.length > 0) {
+                    // Desdobrar tudo
+                    editor.execCommand('unfoldAll');
+                } else {
+                    // Dobrar tudo
+                    editor.execCommand('foldAll');
+                }
+            });
+            
+            // Formatar código (usando indentação automática)
+            document.getElementById('formatBtn').addEventListener('click', function() {
+                const totalLines = editor.lineCount();
+                const totalChars = editor.getValue().length;
+                
+                editor.autoFormatRange({line: 0, ch: 0}, {line: totalLines});
+                editor.setSelection({line: 0, ch: 0});
+                
+                // Feedback visual
+                this.classList.add('text-success');
+                setTimeout(() => {
+                    this.classList.remove('text-success');
+                }, 1000);
+            });
+            
+            // Atualiza o textarea quando o formulário é enviado
+            document.getElementById('editForm').addEventListener('submit', function() {
+                editor.save();
+                showSavingIndicator();
+            });
+            
+            // Indicador de salvamento
+            function showSavingIndicator() {
+                const spinners = document.querySelectorAll('.spinner-border');
+                const saveIcons = document.querySelectorAll('#saveBtn i, #saveFixedBtn > i');
+                
+                spinners.forEach(spinner => spinner.style.display = 'inline-block');
+                saveIcons.forEach(icon => icon.style.display = 'none');
+                
+                setTimeout(() => {
+                    spinners.forEach(spinner => spinner.style.display = 'none');
+                    saveIcons.forEach(icon => icon.style.display = 'inline-block');
+                }, 1000);
+            }
+            
+            // Salvar com botão fixo
+            document.getElementById('saveFixedBtn').addEventListener('click', function() {
+                editor.save();
+                document.getElementById('editForm').submit();
+                showSavingIndicator();
+            });
+            
+            // Detecção de alterações não salvas
+            let hasChanges = false;
+            
+            editor.on('change', function() {
+                if (!hasChanges) {
+                    hasChanges = true;
+                    document.title = '• ' + document.title;
+                }
+                
+                // Atualizar contagem de caracteres
+                document.getElementById('file-size').textContent = editor.getValue().length + ' caracteres';
+            });
+            
+            // Confirmar antes de sair se houver alterações não salvas
+            window.addEventListener('beforeunload', function(e) {
+                if (hasChanges) {
+                    e.preventDefault();
+                    e.returnValue = 'Você tem alterações não salvas. Deseja sair mesmo assim?';
+                }
+            });
+            
+            // Configurar autoFormatRange
+            CodeMirror.defineExtension("autoFormatRange", function(from, to) {
+                const cm = this;
+                const outer = cm.getMode();
+                const text = cm.getRange(from, to).split("\n");
+                const state = CodeMirror.copyState(outer, cm.getTokenAt(from).state);
+                const tabSize = cm.getOption("tabSize");
+                let out = "";
+                let lines = 0, atSol = from.ch === 0;
+                function newline() {
+                    out += "\n";
+                    atSol = true;
+                    ++lines;
+                }
+
+                for (let i = 0; i < text.length; ++i) {
+                    let stream = new CodeMirror.StringStream(text[i], tabSize);
+                    while (!stream.eol()) {
+                        const inner = CodeMirror.innerMode(outer, state);
+                        const style = outer.token(stream, state), cur = stream.current();
+                        stream.start = stream.pos;
+                        if (!atSol || /\S/.test(cur)) {
+                            out += cur;
+                            atSol = false;
+                        }
+                    }
+                    if (!atSol || i < text.length - 1) newline();
+                }
+
+                cm.operation(function() {
+                    cm.replaceRange(out, from, to);
+                    for (let cur = from.line + 1, end = from.line + lines; cur <= end; ++cur)
+                        cm.indentLine(cur, "smart");
+                });
+            });
+        });
+    </script>
+{% endblock %}
