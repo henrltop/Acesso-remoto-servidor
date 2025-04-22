@@ -28,6 +28,22 @@ def get_item(lst, index):
         return ''
 
 @register.filter
+def last(lst):
+    """
+    Retorna o último item de uma lista.
+    
+    Uso: {{ lista|last }}
+    
+    Exemplo: {{ "arquivo.txt"|split:"."|last }} retorna 'txt'
+    """
+    try:
+        if isinstance(lst, list):
+            return lst[-1]
+        return lst.split('.')[-1]
+    except (IndexError, AttributeError):
+        return ''
+
+@register.filter
 def get_file_extension(filename):
     """
     Obtém a extensão de um arquivo.

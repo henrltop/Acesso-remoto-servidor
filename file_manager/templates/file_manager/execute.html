@@ -1,0 +1,563 @@
+{% extends 'file_manager/base.html' %}
+{% load file_manager_filters %}
+
+{% block title %}Executando: {{ filename }}{% endblock %}
+
+{% block extra_head %}
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/dialog/dialog.min.css">
+    <style>
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 230px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .editor-toolbar {
+            background: linear-gradient(135deg, #2c3e50, #1a2a38);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        [data-bs-theme="light"] .editor-toolbar {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            color: #212529;
+        }
+        
+        .editor-statusbar {
+            background: #1a1a1a;
+            color: #6c757d;
+            padding: 5px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 0 0 8px 8px;
+            z-index: 10;
+        }
+        
+        [data-bs-theme="light"] .editor-statusbar {
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1) inset;
+        }
+        
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        [data-bs-theme="light"] .toolbar-btn {
+            color: #212529;
+        }
+        
+        .toolbar-btn:hover {
+            transform: translateY(-2px);
+            color: var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        [data-bs-theme="light"] .toolbar-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .editor-path {
+            font-size: 0.9rem;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+        
+        [data-bs-theme="light"] .editor-path {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .output-container {
+            margin-top: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            display: none;
+        }
+        
+        .output-container.show {
+            display: block;
+            animation: fadeInUp 0.5s;
+        }
+        
+        .output-header {
+            background: linear-gradient(135deg, #2c3e50, #1a2a38);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        [data-bs-theme="light"] .output-header {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            color: #212529;
+        }
+        
+        .output-content {
+            background-color: #282a36;
+            color: #f8f8f2;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            padding: 15px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border-radius: 0 0 8px 8px;
+            min-height: 150px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        [data-bs-theme="light"] .output-content {
+            background-color: #f8f9fa;
+            color: #212529;
+            border: 1px solid #dee2e6;
+        }
+        
+        .output-content .error {
+            color: #ff5555;
+        }
+        
+        .output-content .success {
+            color: #50fa7b;
+        }
+        
+        .file-icon-header {
+            margin-right: 8px;
+            font-size: 1.4rem;
+            vertical-align: middle;
+        }
+        
+        .run-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1030;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .run-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .run-shortcut {
+            font-size: 0.7rem;
+            position: absolute;
+            bottom: -20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 8px;
+            border-radius: 10px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .run-btn:hover .run-shortcut {
+            opacity: 1;
+        }
+        
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            display: none;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .status-dot.running {
+            background-color: #ffbe0b;
+            animation: blinker 1s linear infinite;
+        }
+        
+        .status-dot.success {
+            background-color: #50fa7b;
+        }
+        
+        .status-dot.error {
+            background-color: #ff5555;
+        }
+        
+        @keyframes blinker {
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .language-badge {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+        
+        [data-bs-theme="light"] .language-badge {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .copy-btn {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .copy-btn:hover {
+            color: var(--primary-color);
+        }
+        
+        .execution-time {
+            font-size: 0.85rem;
+            margin-left: 10px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="animate__animated animate__fadeIn">
+                {% with extension=filename|get_file_extension %}
+                    {% if extension == 'py' %}
+                        <i class="fab fa-python text-primary file-icon-header"></i>
+                    {% elif extension == 'js' or extension == 'json' %}
+                        <i class="fab fa-js-square text-warning file-icon-header"></i>
+                    {% elif extension == 'html' or extension == 'htm' %}
+                        <i class="fab fa-html5 text-danger file-icon-header"></i>
+                    {% elif extension == 'css' %}
+                        <i class="fab fa-css3-alt text-info file-icon-header"></i>
+                    {% elif extension == 'php' %}
+                        <i class="fab fa-php text-primary file-icon-header"></i>
+                    {% elif extension == 'md' %}
+                        <i class="fab fa-markdown text-secondary file-icon-header"></i>
+                    {% elif extension == 'sh' %}
+                        <i class="fas fa-terminal text-success file-icon-header"></i>
+                    {% else %}
+                        <i class="fas fa-file-code text-secondary file-icon-header"></i>
+                    {% endif %}
+                {% endwith %}
+                Executando: <span class="text-primary">{{ filename }}</span>
+            </h4>
+            <div>
+                <a href="{% url 'edit_file' path=path %}" class="btn btn-outline-primary me-2 animate__animated animate__fadeIn">
+                    <i class="fas fa-edit me-1"></i> Editar
+                </a>
+                <a href="{% url 'index' %}?path={{ path|cut:filename }}" class="btn btn-outline-secondary animate__animated animate__fadeIn">
+                    <i class="fas fa-arrow-left me-1"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card animate__animated animate__fadeIn mb-4">
+    <div class="editor-container">
+        <div class="editor-toolbar">
+            <div class="d-flex align-items-center">
+                <div class="editor-path">{{ path }}</div>
+                <span class="language-badge text-uppercase">{{ language }}</span>
+            </div>
+            <div class="editor-actions">
+                <button class="toolbar-btn" id="saveBtn" title="Salvar (Ctrl+S)">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button class="toolbar-btn" id="runBtn" title="Executar (Ctrl+Enter)">
+                    <i class="fas fa-play"></i>
+                </button>
+            </div>
+        </div>
+        <div class="editor-wrapper">
+            <textarea id="code-editor">{{ content }}</textarea>
+        </div>
+        <div class="editor-statusbar">
+            <div id="cursor-position">Linha: 1, Coluna: 1</div>
+            <div class="d-flex align-items-center">
+                <span>Modo: {{ language }}</span>
+                {% if can_execute %}
+                    <span class="badge bg-success ms-2">Executável</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-2">Somente leitura</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="output-container" id="outputContainer">
+    <div class="output-header">
+        <div class="d-flex align-items-center">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="outputStatus">Saída</span>
+            <span class="execution-time" id="executionTime"></span>
+        </div>
+        <div>
+            <i class="fas fa-copy copy-btn" id="copyOutput" title="Copiar saída"></i>
+        </div>
+    </div>
+    <div class="output-content" id="outputContent">
+        <!-- O resultado da execução aparecerá aqui -->
+    </div>
+</div>
+
+{% if can_execute %}
+<button class="btn btn-success run-btn animate__animated animate__bounceIn" id="runFixedBtn">
+    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    <i class="fas fa-play"></i>
+    <span class="run-shortcut">Ctrl+Enter</span>
+</button>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <!-- CodeMirror Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    
+    <!-- Modos de linguagens -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/php/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/shell/shell.min.js"></script>
+    
+    <!-- Addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Detectar o tipo de arquivo
+            const language = "{{ language }}";
+            
+            // Determinar o modo do CodeMirror
+            let mode = 'text/plain';
+            if (language === 'javascript' || language === 'json') {
+                mode = 'javascript';
+            } else if (language === 'html') {
+                mode = 'htmlmixed';
+            } else if (language === 'css') {
+                mode = 'css';
+            } else if (language === 'python') {
+                mode = 'python';
+            } else if (language === 'php') {
+                mode = 'php';
+            } else if (language === 'bash' || language === 'sh') {
+                mode = 'shell';
+            } else if (language === 'markdown' || language === 'md') {
+                mode = 'markdown';
+            }
+            
+            // Inicializar o editor
+            const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                lineNumbers: true,
+                mode: mode,
+                theme: 'dracula',
+                indentUnit: 4,
+                smartIndent: true,
+                tabSize: 4,
+                indentWithTabs: false,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                styleActiveLine: true,
+                lineWrapping: false,
+                readOnly: "{{ can_execute }}" === "False", // Apenas leitura se não for executável
+                extraKeys: {
+                    "Ctrl-Enter": runCode,
+                    "Cmd-Enter": runCode, // Para usuários Mac
+                    "Ctrl-S": saveCode,
+                }
+            });
+            
+            // Atualizar informações do cursor
+            editor.on('cursorActivity', function() {
+                const cursor = editor.getCursor();
+                document.getElementById('cursor-position').textContent = `Linha: ${cursor.line + 1}, Coluna: ${cursor.ch + 1}`;
+            });
+            
+            // Execução de código
+            function runCode() {
+                {% if can_execute %}
+                    const code = editor.getValue();
+                    const outputContainer = document.getElementById('outputContainer');
+                    const outputContent = document.getElementById('outputContent');
+                    const statusDot = document.getElementById('statusDot');
+                    const outputStatus = document.getElementById('outputStatus');
+                    const executionTime = document.getElementById('executionTime');
+                    
+                    // Mostrar indicador de carregamento
+                    statusDot.className = 'status-dot running';
+                    outputStatus.textContent = 'Executando...';
+                    outputContent.innerHTML = '<span class="text-muted">Aguardando resposta do servidor...</span>';
+                    outputContainer.classList.add('show');
+                    
+                    // Mostrar spinners nos botões de execução
+                    const runBtn = document.getElementById('runBtn');
+                    const runFixedBtn = document.getElementById('runFixedBtn');
+                    const spinners = document.querySelectorAll('.spinner-border');
+                    spinners.forEach(spinner => spinner.style.display = 'inline-block');
+                    runBtn.querySelector('i').style.display = 'none';
+                    runFixedBtn.querySelector('i').style.display = 'none';
+                    
+                    // Registrar tempo inicial
+                    const startTime = performance.now();
+                    
+                    // Enviar requisição para o servidor
+                    fetch('{% url "execute_code" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code: code,
+                            language: '{{ language }}',
+                            path: '{{ path }}'
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Calcular tempo de execução
+                        const endTime = performance.now();
+                        const executionDuration = ((endTime - startTime) / 1000).toFixed(2);
+                        executionTime.textContent = `Tempo: ${executionDuration}s`;
+                        
+                        if (data.success) {
+                            if (data.error) {
+                                // Execução com erros
+                                statusDot.className = 'status-dot error';
+                                outputStatus.textContent = 'Erro de execução';
+                                outputContent.innerHTML = `<span class="error">${escapeHtml(data.output)}</span>`;
+                            } else {
+                                // Execução bem-sucedida
+                                statusDot.className = 'status-dot success';
+                                outputStatus.textContent = 'Execução bem-sucedida';
+                                outputContent.innerHTML = `<span class="success">${escapeHtml(data.output) || '<span class="text-muted">Nenhuma saída gerada</span>'}</span>`;
+                            }
+                        } else {
+                            // Erro no servidor
+                            statusDot.className = 'status-dot error';
+                            outputStatus.textContent = 'Erro no servidor';
+                            outputContent.innerHTML = `<span class="error">Falha ao executar código: ${escapeHtml(data.error)}</span>`;
+                        }
+                    })
+                    .catch(error => {
+                        // Erro de conexão
+                        statusDot.className = 'status-dot error';
+                        outputStatus.textContent = 'Erro de conexão';
+                        outputContent.innerHTML = `<span class="error">Falha na conexão com o servidor: ${error.message}</span>`;
+                    })
+                    .finally(() => {
+                        // Esconder spinners
+                        spinners.forEach(spinner => spinner.style.display = 'none');
+                        runBtn.querySelector('i').style.display = 'inline-block';
+                        runFixedBtn.querySelector('i').style.display = 'inline-block';
+                    });
+                {% endif %}
+            }
+            
+            // Escapar HTML para evitar injeção de código
+            function escapeHtml(text) {
+                if (!text) return '';
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+            
+            // Salvar código
+            function saveCode() {
+                // Implementar salvamento aqui se necessário
+                alert('Funcionalidade de salvar não implementada nesta tela. Use a tela de edição para salvar.');
+            }
+            
+            // Configurar botões
+            document.getElementById('runBtn').addEventListener('click', runCode);
+            {% if can_execute %}
+            document.getElementById('runFixedBtn').addEventListener('click', runCode);
+            {% endif %}
+            
+            // Copiar saída
+            document.getElementById('copyOutput').addEventListener('click', function() {
+                const outputText = document.getElementById('outputContent').innerText;
+                navigator.clipboard.writeText(outputText)
+                    .then(() => {
+                        this.classList.add('text-success');
+                        setTimeout(() => {
+                            this.classList.remove('text-success');
+                        }, 1000);
+                    })
+                    .catch(err => {
+                        console.error('Erro ao copiar: ', err);
+                    });
+            });
+        });
+    </script>
+{% endblock %}
